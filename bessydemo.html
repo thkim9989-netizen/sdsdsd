@@ -1,0 +1,848 @@
+<meta charset="utf-8">
+<title>Bessy Grades</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  /* ---------- Tokens: light is the bare :root ---------- */
+  :root {
+    --font-brand: "Plus Jakarta Sans", system-ui, sans-serif;
+    --font-ui: "Inter", system-ui, sans-serif;
+
+    --page:      #eceaf2;   /* ambient page behind the app viewport */
+    --ground:    #f6f6fa;   /* app background */
+    --surface:   #ffffff;
+    --elevated:  #eef0f6;   /* surfaceContainerHighest analogue */
+    --line:      #e2e2ec;
+    --text:      #1a1c22;
+    --muted:     #6b7180;   /* outline */
+    --faint:     #9aa0a6;
+    --accent:    #4f46e5;
+    --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+    --accent-line: color-mix(in srgb, var(--accent) 30%, transparent);
+    --shadow: 0 18px 50px -20px rgba(24,22,52,.35), 0 2px 8px -4px rgba(24,22,52,.2);
+
+    /* grade scale — identical to the app's AppTheme.gradeColor */
+    --g-a: #16a34a;  /* >= .90 green   */
+    --g-b: #65a30d;  /* >= .80 lime    */
+    --g-c: #ca8a04;  /* >= .70 amber   */
+    --g-d: #ea580c;  /* >= .60 orange  */
+    --g-f: #dc2626;  /* <  .60 red     */
+    --g-none: #9aa0a6;
+    --good: #16a34a;
+    --bad:  #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page:     #08090c;
+      --ground:   #0e1014;
+      --surface:  #171a21;
+      --elevated: #1f232c;
+      --line:     #262b34;
+      --text:     #e7e9ee;
+      --muted:    #8a909c;
+      --faint:    #6b7180;
+      --accent:   #8b7df0;
+      --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
+      --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+      --shadow: 0 24px 60px -24px rgba(0,0,0,.7), 0 2px 10px -4px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --page:     #08090c;
+    --ground:   #0e1014;
+    --surface:  #171a21;
+    --elevated: #1f232c;
+    --line:     #262b34;
+    --text:     #e7e9ee;
+    --muted:    #8a909c;
+    --faint:    #6b7180;
+    --accent:   #8b7df0;
+    --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
+    --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+    --shadow: 0 24px 60px -24px rgba(0,0,0,.7), 0 2px 10px -4px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+  }
+
+  /* ---------- App viewport: fills a phone, framed on desktop ---------- */
+  #frame {
+    width: 100%;
+    max-width: 430px;
+    height: 100dvh;
+    background: var(--ground);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    isolation: isolate;
+  }
+  #app {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  @media (min-width: 480px) {
+    body { padding: 24px; }
+    #frame {
+      height: min(880px, calc(100dvh - 48px));
+      border-radius: 34px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+    }
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 14px 16px 10px;
+    min-height: 56px;
+  }
+  .topbar h1 {
+    font-family: var(--font-brand);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .iconbtn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: background .15s;
+  }
+  .iconbtn:hover { background: var(--elevated); }
+  .iconbtn svg { width: 22px; height: 22px; }
+  .topbar .reset {
+    width: auto;
+    padding: 0 12px;
+    gap: 6px;
+    font: 600 13px/1 var(--font-ui);
+    color: var(--accent);
+  }
+  .topbar .reset svg { width: 17px; height: 17px; }
+
+  /* ---------- Scroll area ---------- */
+  .scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .pad { padding: 4px 16px 40px; }
+
+  /* ---------- Onboarding ---------- */
+  .onb {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    padding: 32px 28px 28px;
+  }
+  .onb .logo {
+    width: 56px; height: 56px;
+    color: var(--accent);
+  }
+  .onb h2 {
+    font-family: var(--font-brand);
+    font-size: clamp(30px, 9vw, 38px);
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    margin: 22px 0 14px;
+    text-wrap: balance;
+  }
+  .onb .lede { color: var(--muted); font-size: 16px; line-height: 1.5; margin: 0; max-width: 30ch; }
+  .promise { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; }
+  .promise svg { width: 20px; height: 20px; color: var(--accent); flex: 0 0 auto; margin-top: 1px; }
+  .promise span { font-size: 14px; line-height: 1.45; }
+  .grow { flex: 1 1 auto; }
+
+  .btn {
+    appearance: none;
+    border: 0;
+    width: 100%;
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--accent);
+    color: #fff;
+    font: 600 16px/1 var(--font-ui);
+    cursor: pointer;
+    transition: filter .15s, transform .05s;
+  }
+  :root[data-theme="dark"] .btn, :root:not([data-theme="light"]) .btn { color: #14121f; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .btn { color: #fff; } }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:active { transform: translateY(1px); }
+  .demo-note { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 12px; }
+
+  /* ---------- Course list ---------- */
+  .course {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    text-align: left;
+    appearance: none;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 16px 16px 16px 0;
+    margin-top: 12px;
+    cursor: pointer;
+    transition: transform .08s, border-color .15s;
+    overflow: hidden;
+  }
+  .course:first-child { margin-top: 4px; }
+  .course:hover { border-color: var(--accent-line); }
+  .course:active { transform: scale(.99); }
+  .course .bar { width: 5px; align-self: stretch; border-radius: 3px; flex: 0 0 auto; margin: 2px 0; }
+  .course .info { flex: 1 1 auto; min-width: 0; padding-left: 12px; }
+  .course .title { font-weight: 600; font-size: 16px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .course .teacher { color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+  /* ---------- Grade pill ---------- */
+  .pill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--pc) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pc) 35%, transparent);
+    color: var(--pc);
+    font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+  }
+  .pill .pct { font-weight: 700; font-size: 14px; }
+  .pill .ltr { font-weight: 600; font-size: 12px; }
+  .pill.lg { padding: 10px 16px; border-radius: 16px; }
+  .pill.lg .pct { font-size: 24px; }
+  .pill.lg .ltr { font-size: 16px; }
+
+  /* ---------- Detail ---------- */
+  .gradecard {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--elevated);
+    border-radius: 18px;
+    padding: 20px;
+    margin-top: 8px;
+  }
+  .gradecard .lab { flex: 1 1 auto; }
+  .gradecard .lab .k { font-size: 12.5px; font-weight: 600; letter-spacing: .02em; color: var(--muted); text-transform: uppercase; }
+  .gradecard .lab .was { font-size: 13px; color: var(--muted); margin-top: 5px; font-variant-numeric: tabular-nums; }
+
+  .banner { display: flex; align-items: center; gap: 6px; margin: 12px 2px 0; font-size: 13px; }
+  .banner svg { width: 16px; height: 16px; flex: 0 0 auto; }
+
+  .final-btn {
+    appearance: none;
+    width: 100%;
+    margin-top: 14px;
+    padding: 13px;
+    border-radius: 14px;
+    background: transparent;
+    border: 1px solid var(--accent-line);
+    color: var(--accent);
+    font: 600 14.5px/1 var(--font-ui);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background .15s;
+  }
+  .final-btn:hover { background: var(--accent-soft); }
+  .final-btn svg { width: 18px; height: 18px; }
+
+  .cat { margin-top: 22px; }
+  .cat .head { display: flex; align-items: center; gap: 8px; }
+  .cat .cname { font-weight: 700; font-size: 15px; flex: 1 1 auto; min-width: 0; }
+  .cat .weight { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .track { height: 5px; border-radius: 4px; background: var(--elevated); margin-top: 9px; overflow: hidden; }
+  .track > i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+
+  .asg {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    appearance: none;
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    padding: 11px 6px;
+    cursor: pointer;
+    color: var(--text);
+    transition: background .12s;
+  }
+  .asg:hover { background: var(--elevated); }
+  .asg .an { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 7px; }
+  .asg .an .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+  .asg .score { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 14.5px; flex: 0 0 auto; }
+  .asg .pen { width: 15px; height: 15px; color: var(--faint); flex: 0 0 auto; }
+  .chip {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 2px 6px;
+    border-radius: 6px;
+    flex: 0 0 auto;
+    letter-spacing: .01em;
+  }
+  .addbtn {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--accent);
+    font: 600 13.5px/1 var(--font-ui);
+    padding: 12px 6px 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .addbtn svg { width: 17px; height: 17px; }
+
+  /* ---------- Final calculator ---------- */
+  .fc-title { font-weight: 700; font-size: 17px; margin: 4px 2px 2px; }
+  .fc-sub { color: var(--muted); font-size: 13.5px; margin: 0 2px; font-variant-numeric: tabular-nums; }
+  .slider { margin-top: 26px; }
+  .slider .row { display: flex; align-items: baseline; justify-content: space-between; }
+  .slider .row .l { font-weight: 600; font-size: 14.5px; }
+  .slider .row .v { font-weight: 700; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 30px; background: transparent; margin-top: 4px; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 5px; border-radius: 3px; background: var(--elevated); }
+  input[type=range]::-moz-range-track { height: 5px; border-radius: 3px; background: var(--elevated); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
+    margin-top: -8.5px; border: 3px solid var(--ground); box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
+    border: 3px solid var(--ground); box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  }
+  .result {
+    margin-top: 28px;
+    border-radius: 18px;
+    padding: 26px 20px;
+    text-align: center;
+    background: var(--elevated);
+    transition: background .2s;
+  }
+  .result.good { background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .result.bad  { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  .result .k { font-size: 12.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .result .big { font-family: var(--font-brand); font-weight: 800; font-size: 44px; letter-spacing: -.02em; margin: 8px 0; font-variant-numeric: tabular-nums; }
+  .result.good .big { color: var(--good); }
+  .result.bad .big { color: var(--bad); }
+  .result .exp { color: var(--muted); font-size: 14px; line-height: 1.4; }
+
+  /* ---------- Overlays: sheet + dialog ---------- */
+  .scrim {
+    position: absolute; inset: 0; z-index: 20;
+    background: rgba(6,7,12,.5);
+    backdrop-filter: blur(2px);
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+  }
+  .scrim.show { opacity: 1; pointer-events: auto; }
+  .scrim.sheet-scrim { align-items: flex-end; }
+  .scrim.dialog-scrim { align-items: center; justify-content: center; padding: 24px; }
+
+  .sheet {
+    width: 100%;
+    background: var(--surface);
+    border-radius: 22px 22px 0 0;
+    padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+    transition: transform .24s cubic-bezier(.2,.7,.2,1);
+  }
+  .scrim.show .sheet { transform: translateY(0); }
+  .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 4px auto 14px; }
+  .sheet h3, .dialog h3 { font-size: 17px; font-weight: 700; margin: 0; }
+  .sheet .oo { color: var(--muted); font-size: 13px; margin: 4px 0 16px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .field label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .field input {
+    font: 500 16px/1 var(--font-ui);
+    padding: 13px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--ground);
+    color: var(--text);
+    width: 100%;
+  }
+  .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+  .sheet .actions, .dialog .actions { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+  .textbtn {
+    appearance: none; background: transparent; border: 0;
+    color: var(--muted); font: 600 14px/1 var(--font-ui); padding: 12px 8px; cursor: pointer; border-radius: 10px;
+  }
+  .textbtn:hover { background: var(--elevated); color: var(--text); }
+  .textbtn.accent { color: var(--accent); }
+  .fill {
+    appearance: none; border: 0; background: var(--accent); color: #fff;
+    font: 600 14px/1 var(--font-ui); padding: 12px 18px; border-radius: 12px; cursor: pointer;
+  }
+  :root[data-theme="dark"] .fill, :root:not([data-theme="light"]) .fill { color: #14121f; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .fill { color: #fff; } }
+
+  .dialog {
+    width: 100%;
+    max-width: 340px;
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 22px;
+    transform: scale(.95);
+    opacity: 0;
+    transition: transform .18s, opacity .18s;
+  }
+  .scrim.show .dialog { transform: scale(1); opacity: 1; }
+  .two { display: flex; gap: 12px; }
+  .two .field { flex: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  .fade { animation: fade .22s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+</style>
+
+<div id="frame">
+  <div id="app"></div>
+  <div class="scrim sheet-scrim" id="sheetScrim"><div class="sheet" id="sheet"></div></div>
+  <div class="scrim dialog-scrim" id="dialogScrim"><div class="dialog" id="dialog"></div></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------- SVG icons ---------------- */
+  const I = {
+    logo: '<svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 3 3 7-8"/><path d="M14 5h5v5"/><circle cx="7" cy="6" r="1.4" fill="currentColor" stroke="none"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+    gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.87 1.2v.1a2 2 0 0 1-4 0v-.06a1.7 1.7 0 0 0-2.87-1.24l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 13.5H4.5a2 2 0 0 1 0-4h.06A1.7 1.7 0 0 0 5.8 6.63l-.06-.06A2 2 0 1 1 8.57 3.74l.06.06a1.7 1.7 0 0 0 2.87-1.24V2.5a2 2 0 0 1 4 0v.06a1.7 1.7 0 0 0 2.87 1.24l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87 1.7 1.7 0 0 0 1.54 1h.1a2 2 0 0 1 0 4h-.06a1.7 1.7 0 0 0-1.54 1z"/></svg>',
+    reset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>',
+    flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h11l-2 3 2 3H5"/></svg>',
+    pen: '<svg class="pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></svg>',
+    warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>',
+  };
+
+  /* ---------------- Data — mirrors lib/data/mock_repository.dart ---------------- */
+  const A = (id, title, earned, maxPoints, opts) =>
+    Object.assign({ id, title, earned, maxPoints, excused: false, hypothetical: false }, opts || {});
+
+  function seedCourses() {
+    return [
+      { id: "sec-bio", title: "AP Biology", teacher: "Dr. Nguyen", color: "#16a34a",
+        period: { id: "q1", title: "Quarter 1", weighted: true, schoology: 0.941, categories: [
+          { id: "tests", title: "Tests", weight: 0.50, dropLowest: 0, assignments: [
+            A("b-t1", "Cell Structure Exam", 88, 100), A("b-t2", "Genetics Exam", 92, 100), A("b-t3", "Evolution Exam", null, 100) ] },
+          { id: "labs", title: "Labs", weight: 0.30, dropLowest: 0, assignments: [
+            A("b-l1", "Osmosis Lab", 47, 50), A("b-l2", "Enzyme Lab", 50, 50), A("b-l3", "Microscope Lab", 0, 50, { excused: true }) ] },
+          { id: "hw", title: "Homework", weight: 0.20, dropLowest: 1, assignments: [
+            A("b-h1", "Reading Q Ch.3", 10, 10), A("b-h2", "Reading Q Ch.4", 6, 10), A("b-h3", "Punnett Practice", 10, 10) ] },
+        ] } },
+      { id: "sec-alg", title: "Algebra 2 Honors", teacher: "Mr. Patel", color: "#2563eb",
+        period: { id: "q1", title: "Quarter 1", weighted: true, schoology: 0.9085, categories: [
+          { id: "tests", title: "Tests", weight: 0.60, dropLowest: 0, assignments: [
+            A("a-t1", "Quadratics Test", 82, 100), A("a-t2", "Polynomials Test", 90, 100) ] },
+          { id: "quiz", title: "Quizzes", weight: 0.25, dropLowest: 0, assignments: [
+            A("a-q1", "Factoring Quiz", 18, 20), A("a-q2", "Complex Numbers Quiz", 19, 20), A("a-ec", "Bonus Challenge", 3, 0) ] },
+          { id: "hw", title: "Homework", weight: 0.15, dropLowest: 0, assignments: [
+            A("a-h1", "Set 4.1", 10, 10), A("a-h2", "Set 4.2", 9, 10) ] },
+        ] } },
+      { id: "sec-eng", title: "English 11", teacher: "Ms. Alvarez", color: "#db2777",
+        period: { id: "q1", title: "Quarter 1", weighted: false, schoology: 0.86, categories: [
+          { id: "essays", title: "Essays", weight: 0, dropLowest: 0, assignments: [
+            A("e-1", "Narrative Essay", 44, 50), A("e-2", "Rhetorical Analysis", 42, 50) ] },
+          { id: "part", title: "Participation", weight: 0, dropLowest: 0, assignments: [
+            A("e-3", "Socratic Seminar", 23, 25), A("e-4", "Reading Journal", 20, 25) ] },
+        ] } },
+      { id: "sec-hist", title: "World History", teacher: "Mr. Okafor", color: "#ea580c",
+        period: { id: "q1", title: "Quarter 1", weighted: true, schoology: 0.8265, categories: [
+          { id: "exams", title: "Exams", weight: 0.70, dropLowest: 0, assignments: [
+            A("h-e1", "Unit 1 Exam", 79, 100), A("h-e2", "Unit 2 Exam", 80, 100) ] },
+          { id: "proj", title: "Projects", weight: 0.30, dropLowest: 0, assignments: [
+            A("h-p1", "Timeline Project", 27, 30), A("h-p2", "Research Paper", null, 50) ] },
+        ] } },
+      { id: "sec-pe", title: "Physical Education", teacher: "Coach Reyes", color: "#0d9488",
+        period: { id: "q1", title: "Quarter 1", weighted: false, schoology: 0.9833, categories: [
+          { id: "part", title: "Participation", weight: 0, dropLowest: 0, assignments: [
+            A("pe-1", "Week 1", 20, 20), A("pe-2", "Week 2", 19, 20), A("pe-3", "Week 3", 20, 20) ] },
+        ] } },
+    ];
+  }
+
+  /* ---------------- Grade engine — mirrors lib/domain/grade_engine.dart ---------------- */
+  const isGraded = a => a.earned !== null && a.earned !== undefined && !a.excused;
+
+  function applyDropLowest(graded, dropLowest) {
+    if (!dropLowest || dropLowest <= 0) return graded;
+    if (dropLowest >= graded.length) return graded;
+    const sorted = graded.slice().sort((a, b) => {
+      const ra = a.maxPoints === 0 ? Infinity : a.earned / a.maxPoints;
+      const rb = b.maxPoints === 0 ? Infinity : b.earned / b.maxPoints;
+      return ra - rb;
+    });
+    return sorted.slice(dropLowest);
+  }
+
+  function categoryPercent(cat) {
+    const graded = cat.assignments.filter(isGraded);
+    if (graded.length === 0) return null;
+    const kept = applyDropLowest(graded, cat.dropLowest);
+    let earned = 0, max = 0;
+    for (const a of kept) { earned += a.earned; max += a.maxPoints; }
+    if (max === 0) return null;
+    return earned / max;
+  }
+
+  function pooled(assignments) {
+    let earned = 0, max = 0, any = false;
+    for (const a of assignments) { if (!isGraded(a)) continue; any = true; earned += a.earned; max += a.maxPoints; }
+    if (!any || max === 0) return null;
+    return earned / max;
+  }
+
+  function coursePercent(period) {
+    const all = period.categories.flatMap(c => c.assignments);
+    if (!period.weighted) return pooled(all);
+    let ws = 0, wt = 0;
+    for (const c of period.categories) {
+      const p = categoryPercent(c);
+      if (p === null) continue;
+      ws += c.weight * p; wt += c.weight;
+    }
+    if (wt === 0) return pooled(all);
+    return ws / wt;
+  }
+
+  const BANDS = [[0.97,"A+"],[0.93,"A"],[0.90,"A-"],[0.87,"B+"],[0.83,"B"],[0.80,"B-"],
+                 [0.77,"C+"],[0.73,"C"],[0.70,"C-"],[0.67,"D+"],[0.63,"D"],[0.60,"D-"],[0,"F"]];
+  const letterFor = p => { for (const [m, l] of BANDS) if (p >= m) return l; return "F"; };
+
+  function gradeColor(p) {
+    if (p === null || p === undefined) return "var(--g-none)";
+    if (p >= 0.90) return "var(--g-a)";
+    if (p >= 0.80) return "var(--g-b)";
+    if (p >= 0.70) return "var(--g-c)";
+    if (p >= 0.60) return "var(--g-d)";
+    return "var(--g-f)";
+  }
+
+  const pct = p => (p === null || p === undefined) ? "—" : (p * 100).toFixed(1) + "%";
+  const trim = v => Number.isInteger(v) ? String(v) : v.toFixed(1);
+  function requiredFinal(current, target, finalWeight) {
+    return (target - current * (1 - finalWeight)) / finalWeight;
+  }
+
+  /* ---------------- State ---------------- */
+  const base = seedCourses();                 // pristine, never mutated
+  const clone = c => JSON.parse(JSON.stringify(c));
+  let state = { screen: "onboarding", courseId: null, session: null, baseSession: null,
+                target: 0.90, finalWeight: 0.20 };
+
+  const findCourse = id => base.find(c => c.id === id);
+  const sessionDirty = () => state.session &&
+    state.session.period.categories.some(c => c.assignments.some(a => a.hypothetical));
+
+  function openCourse(id) {
+    state.courseId = id;
+    state.baseSession = findCourse(id);
+    state.session = clone(state.baseSession);
+    state.screen = "detail";
+    render();
+  }
+
+  const app = document.getElementById("app");
+  const esc = s => s.replace(/[&<>"]/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[m]));
+
+  /* ---------------- Screens ---------------- */
+  function topbar({ title, back, reset, gear }) {
+    return '<div class="topbar">'
+      + (back ? '<button class="iconbtn" data-act="back" aria-label="Back">' + I.back + '</button>' : "")
+      + '<h1>' + esc(title) + '</h1>'
+      + (reset ? '<button class="iconbtn reset" data-act="reset">' + I.reset + 'Reset</button>' : "")
+      + (gear ? '<button class="iconbtn" data-act="theme" aria-label="Toggle theme">' + I.gear + '</button>' : "")
+      + '</div>';
+  }
+
+  function pill(p, letter, lg) {
+    return '<span class="pill' + (lg ? " lg" : "") + '" style="--pc:' + gradeColor(p) + '">'
+      + '<span class="pct">' + pct(p) + '</span>'
+      + (letter ? '<span class="ltr">' + letter + '</span>' : "") + '</span>';
+  }
+
+  function renderOnboarding() {
+    app.innerHTML =
+      '<div class="onb fade">'
+      + I.logo
+      + '<h2>Your grades,\nfinally clear.</h2>'
+      + '<p class="lede">See every course, play out What-If scores, and find exactly what you need on the final.</p>'
+      + '<div style="height:26px"></div>'
+      + '<div class="promise">' + I.lock + '<span>Your grades never leave your device.</span></div>'
+      + '<div class="promise">' + I.shield + '<span>You sign in on Schoology’s own page — we never see your password.</span></div>'
+      + '<div class="grow"></div>'
+      + '<button class="btn" data-act="signin">Sign in with Schoology</button>'
+      + '<div class="demo-note">Demo build — sample data</div>'
+      + '</div>';
+  }
+
+  function renderList() {
+    let rows = "";
+    for (const c of base) {
+      const p = coursePercent(c.period);
+      rows += '<button class="course" data-act="open" data-id="' + c.id + '">'
+        + '<div class="bar" style="background:' + c.color + '"></div>'
+        + '<div class="info"><div class="title">' + esc(c.title) + '</div>'
+        + '<div class="teacher">' + esc(c.teacher) + '</div></div>'
+        + pill(p, letterFor(p)) + '</button>';
+    }
+    app.innerHTML = topbar({ title: "My Courses", gear: true })
+      + '<div class="scroll"><div class="pad fade">' + rows + '</div></div>';
+  }
+
+  function renderDetail() {
+    const course = state.session;
+    const period = course.period;
+    const dirty = sessionDirty();
+    const proj = coursePercent(period);
+    const wasP = dirty ? coursePercent(state.baseSession.period) : null;
+
+    let banner = "";
+    if (period.schoology != null && !dirty) {
+      const diff = Math.abs((proj - period.schoology) * 100);
+      const ok = diff <= 0.5;
+      banner = '<div class="banner" style="color:' + (ok ? "var(--good)" : "var(--bad)") + '">'
+        + (ok ? I.check : I.warn)
+        + '<span>' + (ok ? "Matches Schoology’s grade" : "Differs from Schoology by " + diff.toFixed(1) + " pts") + '</span></div>';
+    }
+
+    let cats = "";
+    for (const c of period.categories) {
+      const cp = categoryPercent(c);
+      let asgs = "";
+      for (const a of c.assignments) {
+        let trailing, tcolor;
+        if (a.excused) { trailing = "Excused"; tcolor = "var(--muted)"; }
+        else if (a.earned === null) { trailing = "— / " + trim(a.maxPoints); tcolor = "var(--muted)"; }
+        else { trailing = trim(a.earned) + " / " + trim(a.maxPoints); tcolor = gradeColor(a.maxPoints > 0 ? a.earned / a.maxPoints : null); }
+        asgs += '<button class="asg" data-act="edit" data-cat="' + c.id + '" data-id="' + a.id + '">'
+          + '<span class="an"><span class="t">' + esc(a.title) + '</span>'
+          + (a.hypothetical ? '<span class="chip">What-If</span>' : "") + '</span>'
+          + '<span class="score" style="color:' + tcolor + '">' + trailing + '</span>' + I.pen + '</button>';
+      }
+      cats += '<div class="cat">'
+        + '<div class="head"><span class="cname">' + esc(c.title) + '</span>'
+        + (period.weighted ? '<span class="weight">weight ' + Math.round(c.weight * 100) + '%</span>' : "")
+        + pill(cp) + '</div>'
+        + (period.weighted ? '<div class="track"><i style="width:' + Math.round(Math.min(1, c.weight) * 100) + '%"></i></div>' : "")
+        + asgs
+        + '<button class="addbtn" data-act="add" data-cat="' + c.id + '">' + I.plus + 'Add What-If assignment</button>'
+        + '</div>';
+    }
+
+    app.innerHTML = topbar({ title: course.title, back: true, reset: dirty })
+      + '<div class="scroll"><div class="pad fade">'
+      + '<div class="gradecard"><div class="lab"><div class="k">' + (dirty ? "Projected grade" : "Current grade") + '</div>'
+      + (dirty ? '<div class="was">Was ' + pct(wasP) + '</div>' : "") + '</div>'
+      + pill(proj, proj === null ? null : letterFor(proj), true) + '</div>'
+      + banner
+      + '<button class="final-btn" data-act="final">' + I.flag + 'What do I need on the final?</button>'
+      + cats
+      + '</div></div>';
+  }
+
+  function renderFinal() {
+    const course = state.session;
+    const current = coursePercent(course.period) || 0;
+    const need = requiredFinal(current, state.target, state.finalWeight);
+    const impossible = need > 1.0, guaranteed = need <= 0.0;
+    const cls = guaranteed ? "good" : impossible ? "bad" : "";
+    const exp = guaranteed ? "Already locked in — even a 0 keeps your target."
+      : impossible ? "Out of reach with the final alone."
+      : "on the final to reach " + pct(state.target) + ".";
+
+    app.innerHTML = topbar({ title: "Final grade calculator", back: true })
+      + '<div class="scroll"><div class="pad fade">'
+      + '<div class="fc-title">' + esc(course.title) + '</div>'
+      + '<div class="fc-sub">Current grade: ' + pct(current) + '</div>'
+      + '<div class="slider"><div class="row"><span class="l">Target grade</span><span class="v" id="tv">' + pct(state.target) + '</span></div>'
+      + '<input type="range" id="target" min="0.50" max="1.00" step="0.01" value="' + state.target + '"></div>'
+      + '<div class="slider"><div class="row"><span class="l">Final is worth</span><span class="v" id="fv">' + Math.round(state.finalWeight * 100) + '%</span></div>'
+      + '<input type="range" id="fweight" min="0.05" max="0.50" step="0.01" value="' + state.finalWeight + '"></div>'
+      + '<div class="result ' + cls + '" id="result"><div class="k">You need</div>'
+      + '<div class="big">' + (need * 100).toFixed(1) + '%</div>'
+      + '<div class="exp">' + exp + '</div></div>'
+      + '</div></div>';
+
+    const tEl = document.getElementById("target");
+    const fEl = document.getElementById("fweight");
+    const recompute = () => {
+      state.target = parseFloat(tEl.value);
+      state.finalWeight = parseFloat(fEl.value);
+      document.getElementById("tv").textContent = pct(state.target);
+      document.getElementById("fv").textContent = Math.round(state.finalWeight * 100) + "%";
+      const n = requiredFinal(current, state.target, state.finalWeight);
+      const imp = n > 1.0, gua = n <= 0.0;
+      const r = document.getElementById("result");
+      r.className = "result " + (gua ? "good" : imp ? "bad" : "");
+      r.querySelector(".big").textContent = (n * 100).toFixed(1) + "%";
+      r.querySelector(".exp").textContent = gua ? "Already locked in — even a 0 keeps your target."
+        : imp ? "Out of reach with the final alone." : "on the final to reach " + pct(state.target) + ".";
+    };
+    tEl.addEventListener("input", recompute);
+    fEl.addEventListener("input", recompute);
+  }
+
+  function render() {
+    if (state.screen === "onboarding") renderOnboarding();
+    else if (state.screen === "list") renderList();
+    else if (state.screen === "detail") renderDetail();
+    else if (state.screen === "final") renderFinal();
+  }
+
+  /* ---------------- Overlays ---------------- */
+  const sheetScrim = document.getElementById("sheetScrim");
+  const sheet = document.getElementById("sheet");
+  const dialogScrim = document.getElementById("dialogScrim");
+  const dialog = document.getElementById("dialog");
+
+  function closeSheet() { sheetScrim.classList.remove("show"); }
+  function closeDialog() { dialogScrim.classList.remove("show"); }
+  sheetScrim.addEventListener("click", e => { if (e.target === sheetScrim) closeSheet(); });
+  dialogScrim.addEventListener("click", e => { if (e.target === dialogScrim) closeDialog(); });
+
+  function findAssignment(catId, id) {
+    const cat = state.session.period.categories.find(c => c.id === catId);
+    return { cat, a: cat.assignments.find(x => x.id === id) };
+  }
+
+  function openEdit(catId, id) {
+    const { a } = findAssignment(catId, id);
+    sheet.innerHTML = '<div class="grab"></div>'
+      + '<h3>' + esc(a.title) + '</h3>'
+      + '<div class="oo">Out of ' + trim(a.maxPoints) + ' points</div>'
+      + '<div class="field"><label for="pe">Points earned</label>'
+      + '<input id="pe" inputmode="decimal" autocomplete="off" value="' + (a.earned === null ? "" : trim(a.earned)) + '"></div>'
+      + '<div class="actions"><button class="textbtn" data-sheet="clear">Clear score</button>'
+      + '<div style="flex:1"></div><button class="fill" data-sheet="apply">Apply What-If</button></div>';
+    sheetScrim.classList.add("show");
+    const input = document.getElementById("pe");
+    setTimeout(() => { input.focus(); input.select(); }, 60);
+    input.addEventListener("keydown", e => { if (e.key === "Enter") applyEdit(catId, id); });
+
+    sheet.querySelector('[data-sheet="clear"]').onclick = () => {
+      const { a } = findAssignment(catId, id);
+      a.earned = null; a.hypothetical = true; closeSheet(); render();
+    };
+    sheet.querySelector('[data-sheet="apply"]').onclick = () => applyEdit(catId, id);
+  }
+  function applyEdit(catId, id) {
+    const v = parseFloat(document.getElementById("pe").value);
+    const { a } = findAssignment(catId, id);
+    a.earned = isNaN(v) ? null : v; a.hypothetical = true;
+    closeSheet(); render();
+  }
+
+  function openAdd(catId) {
+    const cat = state.session.period.categories.find(c => c.id === catId);
+    dialog.innerHTML = '<h3>Add to ' + esc(cat.title) + '</h3>'
+      + '<div class="field"><label for="atitle">Title</label><input id="atitle" value="Hypothetical" autocomplete="off"></div>'
+      + '<div class="two"><div class="field"><label for="aearn">Earned</label><input id="aearn" inputmode="decimal" autocomplete="off"></div>'
+      + '<div class="field"><label for="amax">Out of</label><input id="amax" inputmode="decimal" autocomplete="off" value="100"></div></div>'
+      + '<div class="actions"><div style="flex:1"></div><button class="textbtn" data-dlg="cancel">Cancel</button>'
+      + '<button class="fill" data-dlg="add">Add</button></div>';
+    dialogScrim.classList.add("show");
+    setTimeout(() => document.getElementById("aearn").focus(), 60);
+    dialog.querySelector('[data-dlg="cancel"]').onclick = closeDialog;
+    dialog.querySelector('[data-dlg="add"]').onclick = () => {
+      const earned = parseFloat(document.getElementById("aearn").value);
+      const max = parseFloat(document.getElementById("amax").value);
+      if (isNaN(earned) || isNaN(max)) { closeDialog(); return; }
+      let title = document.getElementById("atitle").value.trim();
+      if (!title) title = "Hypothetical";
+      cat.assignments.push(A("hyp-" + Date.now(), title, earned, max, { hypothetical: true }));
+      closeDialog(); render();
+    };
+  }
+
+  /* ---------------- Theme ---------------- */
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = getComputedStyle(root).getPropertyValue("--ground").trim().startsWith("#0e") ||
+                 root.getAttribute("data-theme") === "dark";
+    const next = dark ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("bessy-theme", next); } catch (e) {}
+  }
+  try { const t = localStorage.getItem("bessy-theme"); if (t) document.documentElement.setAttribute("data-theme", t); } catch (e) {}
+
+  /* ---------------- Events ---------------- */
+  app.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const act = el.getAttribute("data-act");
+    if (act === "signin") { state.screen = "list"; render(); }
+    else if (act === "open") { openCourse(el.getAttribute("data-id")); }
+    else if (act === "back") {
+      if (state.screen === "final") { state.screen = "detail"; render(); }
+      else { state.screen = "list"; state.session = null; render(); }
+    }
+    else if (act === "theme") { toggleTheme(); }
+    else if (act === "reset") { state.session = clone(state.baseSession); render(); }
+    else if (act === "final") { state.screen = "final"; render(); }
+    else if (act === "edit") { openEdit(el.getAttribute("data-cat"), el.getAttribute("data-id")); }
+    else if (act === "add") { openAdd(el.getAttribute("data-cat")); }
+  });
+
+  render();
+})();
+</script>
